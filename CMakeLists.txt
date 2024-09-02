@@ -17,8 +17,12 @@ elseif(NOT APPLE)
   string(APPEND CMAKE_C_FLAGS " -Wall -Wextra")
 endif()
 
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 add_executable(piper src/cpp/main.cpp src/cpp/piper.cpp)
 add_executable(test_piper src/cpp/test.cpp src/cpp/piper.cpp)
+else()
+add_library(libPiper SHARED src/cpp/piper.cpp)
+endif()
 
 # NOTE: external project prefix are shortened because of path length restrictions on Windows
 # NOTE: onnxruntime is pulled from piper-phonemize
@@ -37,8 +41,12 @@ if(NOT DEFINED FMT_DIR)
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${FMT_DIR}
     CMAKE_ARGS -DFMT_TEST:BOOL=OFF  # Don't build all the tests
   )
-  add_dependencies(piper fmt_external)
-  add_dependencies(test_piper fmt_external)
+  if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+    add_dependencies(piper fmt_external)
+    add_dependencies(test_piper fmt_external)
+  else()
+    add_dependencies(libPiper fmt_external)
+  endif()
 endif()
 
 # ---- spdlog ---
@@ -52,8 +60,12 @@ if(NOT DEFINED SPDLOG_DIR)
     URL "https://github.com/gabime/spdlog/archive/refs/tags/v${SPDLOG_VERSION}.zip"
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${SPDLOG_DIR}
   )
-  add_dependencies(piper spdlog_external)
-  add_dependencies(test_piper spdlog_external)
+  if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+    add_dependencies(piper spdlog_external)
+    add_dependencies(test_piper spdlog_external)
+  else()
+    add_dependencies(libPiper spdlog_external)
+  endif()
 endif()
 
 # ---- piper-phonemize ---
@@ -66,8 +78,12 @@ if(NOT DEFINED PIPER_PHONEMIZE_DIR)
     URL "https://github.com/rhasspy/piper-phonemize/archive/refs/heads/master.zip"
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${PIPER_PHONEMIZE_DIR}
   )
-  add_dependencies(piper piper_phonemize_external)
-  add_dependencies(test_piper piper_phonemize_external)
+  if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+    add_dependencies(piper piper_phonemize_external)
+    add_dependencies(test_piper piper_phonemize_external)
+  else()
+    add_dependencies(libPiper piper_phonemize_external)
+  endif()
 endif()
 
 # ---- Declare executable ----
@@ -81,9 +97,12 @@ if((NOT MSVC) AND (NOT APPLE))
   set(PIPER_EXTRA_LIBRARIES "pthread")
 endif()
 
+
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+
 target_link_libraries(piper
   fmt
-  spdlog
+  spdlogd
   espeak-ng
   piper_phonemize
   onnxruntime
@@ -130,7 +149,7 @@ target_link_directories(
 
 target_link_libraries(test_piper PUBLIC
   fmt
-  spdlog
+  spdlogd
   espeak-ng
   piper_phonemize
   onnxruntime
@@ -158,6 +177,7 @@ install(
   DESTINATION ${CMAKE_INSTALL_PREFIX}
   FILES_MATCHING
   PATTERN "*.dll"
+  PATTERN "*.lib"
   PATTERN "*.so*"
 )
 
@@ -170,3 +190,28 @@ install(
   FILES ${PIPER_PHONEMIZE_DIR}/share/libtashkeel_model.ort
   DESTINATION ${CMAKE_INSTALL_PREFIX}
 )
+
+else()
+
+target_link_libraries(libPiper
+  fmt
+  spdlogd
+  espeak-ng
+  piper_phonemize
+  onnxruntime
+  ${PIPER_EXTRA_LIBRARIES}
+)
+
+target_link_directories(libPiper PUBLIC
+  ${FMT_DIR}/lib
+  ${SPDLOG_DIR}/lib
+  ${PIPER_PHONEMIZE_DIR}/lib
+)
+
+target_include_directories(libPiper PUBLIC
+  ${FMT_DIR}/include
+  ${SPDLOG_DIR}/include
+  ${PIPER_PHONEMIZE_DIR}/include
+)
+
+endif()
