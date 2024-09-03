@@ -17,12 +17,9 @@ elseif(NOT APPLE)
   string(APPEND CMAKE_C_FLAGS " -Wall -Wextra")
 endif()
 
-if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 add_executable(piper src/cpp/main.cpp src/cpp/piper.cpp)
 add_executable(test_piper src/cpp/test.cpp src/cpp/piper.cpp)
-else()
 add_library(libPiper SHARED src/cpp/piper.cpp)
-endif()
 
 # NOTE: external project prefix are shortened because of path length restrictions on Windows
 # NOTE: onnxruntime is pulled from piper-phonemize
@@ -41,12 +38,9 @@ if(NOT DEFINED FMT_DIR)
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${FMT_DIR}
     CMAKE_ARGS -DFMT_TEST:BOOL=OFF  # Don't build all the tests
   )
-  if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
-    add_dependencies(piper fmt_external)
-    add_dependencies(test_piper fmt_external)
-  else()
-    add_dependencies(libPiper fmt_external)
-  endif()
+  add_dependencies(piper fmt_external)
+  add_dependencies(test_piper fmt_external)
+  add_dependencies(libPiper fmt_external)
 endif()
 
 # ---- spdlog ---
@@ -60,12 +54,9 @@ if(NOT DEFINED SPDLOG_DIR)
     URL "https://github.com/gabime/spdlog/archive/refs/tags/v${SPDLOG_VERSION}.zip"
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${SPDLOG_DIR}
   )
-  if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
-    add_dependencies(piper spdlog_external)
-    add_dependencies(test_piper spdlog_external)
-  else()
-    add_dependencies(libPiper spdlog_external)
-  endif()
+  add_dependencies(piper spdlog_external)
+  add_dependencies(test_piper spdlog_external)
+  add_dependencies(libPiper spdlog_external)
 endif()
 
 # ---- piper-phonemize ---
@@ -75,15 +66,13 @@ if(NOT DEFINED PIPER_PHONEMIZE_DIR)
   ExternalProject_Add(
     piper_phonemize_external
     PREFIX "${CMAKE_CURRENT_BINARY_DIR}/p"
-    URL "https://github.com/rhasspy/piper-phonemize/archive/refs/heads/master.zip"
+    GIT_REPOSITORY https://github.com/ncanestrari/piper-phonemize.git
+    GIT_TAG        origin/UseEspeakNgVariant
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${PIPER_PHONEMIZE_DIR}
   )
-  if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
-    add_dependencies(piper piper_phonemize_external)
-    add_dependencies(test_piper piper_phonemize_external)
-  else()
-    add_dependencies(libPiper piper_phonemize_external)
-  endif()
+  add_dependencies(piper piper_phonemize_external)
+  add_dependencies(test_piper piper_phonemize_external)
+  add_dependencies(libPiper piper_phonemize_external)
 endif()
 
 # ---- Declare executable ----
@@ -96,9 +85,6 @@ if((NOT MSVC) AND (NOT APPLE))
 
   set(PIPER_EXTRA_LIBRARIES "pthread")
 endif()
-
-
-if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 
 target_link_libraries(piper
   fmt
@@ -191,8 +177,6 @@ install(
   DESTINATION ${CMAKE_INSTALL_PREFIX}
 )
 
-else()
-
 target_link_libraries(libPiper
   fmt
   spdlogd
@@ -214,4 +198,3 @@ target_include_directories(libPiper PUBLIC
   ${PIPER_PHONEMIZE_DIR}/include
 )
 
-endif()
