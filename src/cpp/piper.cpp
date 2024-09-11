@@ -310,8 +310,11 @@ void loadVoice(PiperConfig &config, std::string modelPath,
   fmt::print("Parsing voice config at {}\n", modelConfigPath);
   std::ifstream modelConfigFile(modelConfigPath);
   fmt::print("Parsing json configuration\n");
-  voice.configRoot = json::parse(modelConfigFile);
-
+  try {
+    voice.configRoot = json::parse(modelConfigFile);
+  } catch(json::parse_error & e) {
+    fmt::print("json report exception : {}\n", e.what());
+  }
   fmt::print("Parsing phonemize configuration\n");
   parsePhonemizeConfig(voice.configRoot, voice.phonemizeConfig);
   fmt::print("Parsing synthesis configuration\n");
