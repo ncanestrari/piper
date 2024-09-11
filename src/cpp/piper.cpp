@@ -217,7 +217,7 @@ void initialize(PiperConfig &config) {
   if (config.useESpeak) {
     // Set up espeak-ng for calling espeak_TextToPhonemesWithTerminator
     // See: https://github.com/rhasspy/espeak-ng
-    spdlog::info("Initializing eSpeak");
+    fmt::print("Initializing eSpeak");
     int result = espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS,
                                    /*buflength*/ 0,
                                    /*path*/ config.eSpeakDataPath.c_str(),
@@ -226,37 +226,37 @@ void initialize(PiperConfig &config) {
       throw std::runtime_error("Failed to initialize eSpeak-ng");
     }
 
-    spdlog::info("Initialized eSpeak");
+    fmt::print("Initialized eSpeak");
   }
 
   // Load onnx model for libtashkeel
   // https://github.com/mush42/libtashkeel/
   if (config.useTashkeel) {
-    spdlog::info("Using libtashkeel for diacritization");
+    fmt::print("Using libtashkeel for diacritization");
     if (!config.tashkeelModelPath) {
       throw std::runtime_error("No path to libtashkeel model");
     }
 
-    spdlog::info("Loading libtashkeel model from {}",
+    fmt::print("Loading libtashkeel model from {}",
                   config.tashkeelModelPath.value());
     config.tashkeelState = std::make_unique<tashkeel::State>();
     tashkeel::tashkeel_load(config.tashkeelModelPath.value(),
                             *config.tashkeelState);
-    spdlog::info("Initialized libtashkeel");
+    fmt::print("Initialized libtashkeel");
   }
 
-  spdlog::info("Initialized piper");
+  fmt::print("Initialized piper");
 }
 
 void terminate(PiperConfig &config) {
   if (config.useESpeak) {
     // Clean up espeak-ng
-    spdlog::info("Terminating eSpeak");
+    fmt::print("Terminating eSpeak");
     espeak_Terminate();
-    spdlog::info("Terminated eSpeak");
+    fmt::print("Terminated eSpeak");
   }
 
-  spdlog::info("Terminated piper");
+  fmt::print("Terminated piper");
 }
 
 void loadModel(std::string modelPath, ModelSession &session, bool useCuda) {
@@ -301,7 +301,7 @@ void loadModel(std::string modelPath, ModelSession &session, bool useCuda) {
   session.onnx = Ort::Session(session.env, modelPathStr, session.options);
 
   auto endTime = std::chrono::steady_clock::now();
-  spdlog::info("Loaded onnx model in {} second(s)",
+  fmt::print("Loaded onnx model in {} second(s)",
                 std::chrono::duration<double>(endTime - startTime).count());
 }
 
@@ -327,7 +327,7 @@ void loadVoice(PiperConfig &config, std::string modelPath,
     }
   }
 
-  spdlog::info("Voice contains {} speaker(s)", voice.modelConfig.numSpeakers);
+  fmt::print("Voice contains {} speaker(s)", voice.modelConfig.numSpeakers);
 
   loadModel(modelPath, voice.session, useCuda);
 
@@ -337,7 +337,7 @@ void loadVoice(PiperConfig &config, std::string modelPath,
 void synthesize(std::vector<PhonemeId> &phonemeIds,
                 SynthesisConfig &synthesisConfig, ModelSession &session,
                 std::vector<int16_t> &audioBuffer, SynthesisResult &result) {
-  spdlog::info("Synthesizing audio for {} phoneme id(s)", phonemeIds.size());
+  fmt::print("Synthesizing audio for {} phoneme id(s)", phonemeIds.size());
 
   auto memoryInfo = Ort::MemoryInfo::CreateCpu(
       OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault);
@@ -404,7 +404,7 @@ void synthesize(std::vector<PhonemeId> &phonemeIds,
   if (result.audioSeconds > 0) {
     result.realTimeFactor = result.inferSeconds / result.audioSeconds;
   }
-  spdlog::info("Synthesized {} second(s) of audio in {} second(s)",
+  fmt::print("Synthesized {} second(s) of audio in {} second(s)",
                 result.audioSeconds, result.inferSeconds);
 
   // Get max audio value for scaling
@@ -459,12 +459,12 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
       throw std::runtime_error("Tashkeel model is not loaded");
     }
 
-    spdlog::info("Diacritizing text with libtashkeel: {}", text);
+    fmt::print("Diacritizing text with libtashkeel: {}", text);
     text = tashkeel::tashkeel_run(text, *config.tashkeelState);
   }
 
   // Phonemes for each sentence
-  spdlog::info("Phonemizing text: {}", text);
+  fmt::print("Phonemizing text: {}", text);
   std::vector<std::vector<Phoneme>> phonemes;
 
   if (voice.phonemizeConfig.phonemeType == eSpeakPhonemes) {
@@ -492,7 +492,7 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
         utf8::append(phoneme, std::back_inserter(phonemesStr));
       }
 
-      spdlog::info("Converting {} phoneme(s) to ids: {}",
+      fmt::print("Converting {} phoneme(s) to ids: {}",
                     sentencePhonemes.size(), phonemesStr);
     }
 
@@ -561,7 +561,7 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
           phonemeIdsStr << phonemeId << ", ";
         }
 
-        spdlog::info("Converted {} phoneme(s) to {} phoneme id(s): {}",
+        fmt::print("Converted {} phoneme(s) to {} phoneme id(s): {}",
                       phrasePhonemes[phraseIdx]->size(), phonemeIds.size(),
                       phonemeIdsStr.str());
       }
