@@ -85,7 +85,7 @@ void parsePhonemizeConfig(json &configRoot, PhonemizeConfig &phonemizeConfig) {
           idsStr << toId << ",";
         }
 
-        spdlog::error("\"{}\" is not a single codepoint (ids={})", fromPhoneme,
+        fmt::print("\"{}\" is not a single codepoint (ids={})\n", fromPhoneme,
                       idsStr.str());
         throw std::runtime_error(
             "Phonemes must be one codepoint (phoneme id map)");
@@ -110,9 +110,8 @@ void parsePhonemizeConfig(json &configRoot, PhonemizeConfig &phonemizeConfig) {
     for (auto &fromPhonemeItem : phonemeMapValue.items()) {
       std::string fromPhoneme = fromPhonemeItem.key();
       if (!isSingleCodepoint(fromPhoneme)) {
-        spdlog::error("\"{}\" is not a single codepoint", fromPhoneme);
-        throw std::runtime_error(
-            "Phonemes must be one codepoint (phoneme map)");
+        fmt::print("\"{}\" is not a single codepoint\n", fromPhoneme);
+        throw std::runtime_error("Phonemes must be one codepoint (phoneme map)");
       }
 
       auto fromCodepoint = getCodepoint(fromPhoneme);
@@ -178,7 +177,7 @@ void parseSynthesisConfig(json &configRoot, SynthesisConfig &synthesisConfig) {
       for (auto &phonemeItem : phonemeSilenceValue.items()) {
         std::string phonemeStr = phonemeItem.key();
         if (!isSingleCodepoint(phonemeStr)) {
-          spdlog::error("\"{}\" is not a single codepoint", phonemeStr);
+          fmt::print("\"{}\" is not a single codepoint\n", phonemeStr);
           throw std::runtime_error(
               "Phonemes must be one codepoint (phoneme silence)");
         }
@@ -217,7 +216,7 @@ void initialize(PiperConfig &config) {
   if (config.useESpeak) {
     // Set up espeak-ng for calling espeak_TextToPhonemesWithTerminator
     // See: https://github.com/rhasspy/espeak-ng
-    fmt::print("Initializing eSpeak");
+    fmt::print("Initializing eSpeak\n");
     int result = espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS,
                                    /*buflength*/ 0,
                                    /*path*/ config.eSpeakDataPath.c_str(),
@@ -226,41 +225,41 @@ void initialize(PiperConfig &config) {
       throw std::runtime_error("Failed to initialize eSpeak-ng");
     }
 
-    fmt::print("Initialized eSpeak");
+    fmt::print("Initialized eSpeak\n");
   }
 
   // Load onnx model for libtashkeel
   // https://github.com/mush42/libtashkeel/
   if (config.useTashkeel) {
-    fmt::print("Using libtashkeel for diacritization");
+    fmt::print("Using libtashkeel for diacritization\n");
     if (!config.tashkeelModelPath) {
       throw std::runtime_error("No path to libtashkeel model");
     }
 
-    fmt::print("Loading libtashkeel model from {}",
+    fmt::print("Loading libtashkeel model from {}\n",
                   config.tashkeelModelPath.value());
     config.tashkeelState = std::make_unique<tashkeel::State>();
     tashkeel::tashkeel_load(config.tashkeelModelPath.value(),
                             *config.tashkeelState);
-    fmt::print("Initialized libtashkeel");
+    fmt::print("Initialized libtashkeel\n");
   }
 
-  fmt::print("Initialized piper");
+  fmt::print("Initialized piper\n");
 }
 
 void terminate(PiperConfig &config) {
   if (config.useESpeak) {
     // Clean up espeak-ng
-    fmt::print("Terminating eSpeak");
+    fmt::print("Terminating eSpeak\n");
     espeak_Terminate();
-    fmt::print("Terminated eSpeak");
+    fmt::print("Terminated eSpeak\n");
   }
 
-  fmt::print("Terminated piper");
+  fmt::print("Terminated piper\n");
 }
 
 void loadModel(std::string modelPath, ModelSession &session, bool useCuda) {
-  spdlog::debug("Loading onnx model from {}", modelPath);
+  fmt::print("Loading onnx model from {}\n", modelPath);
   session.env = Ort::Env(OrtLoggingLevel::ORT_LOGGING_LEVEL_WARNING,
                          instanceName.c_str());
   session.env.DisableTelemetryEvents();
@@ -279,8 +278,7 @@ void loadModel(std::string modelPath, ModelSession &session, bool useCuda) {
   // session.options.SetGraphOptimizationLevel(
   //     GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
 
-  session.options.SetGraphOptimizationLevel(
-      GraphOptimizationLevel::ORT_DISABLE_ALL);
+  session.options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
 
   // Slows down performance very slightly
   // session.options.SetExecutionMode(ExecutionMode::ORT_PARALLEL);
@@ -301,7 +299,7 @@ void loadModel(std::string modelPath, ModelSession &session, bool useCuda) {
   session.onnx = Ort::Session(session.env, modelPathStr, session.options);
 
   auto endTime = std::chrono::steady_clock::now();
-  fmt::print("Loaded onnx model in {} second(s)",
+  fmt::print("Loaded onnx model in {} second(s)\n",
                 std::chrono::duration<double>(endTime - startTime).count());
 }
 
@@ -309,7 +307,7 @@ void loadModel(std::string modelPath, ModelSession &session, bool useCuda) {
 void loadVoice(PiperConfig &config, std::string modelPath,
                std::string modelConfigPath, Voice &voice,
                std::optional<SpeakerId> &speakerId, bool useCuda) {
-  spdlog::debug("Parsing voice config at {}", modelConfigPath);
+  fmt::print("Parsing voice config at {}\n", modelConfigPath);
   std::ifstream modelConfigFile(modelConfigPath);
   voice.configRoot = json::parse(modelConfigFile);
 
@@ -327,7 +325,7 @@ void loadVoice(PiperConfig &config, std::string modelPath,
     }
   }
 
-  fmt::print("Voice contains {} speaker(s)", voice.modelConfig.numSpeakers);
+  fmt::print("Voice contains {} speaker(s)\n", voice.modelConfig.numSpeakers);
 
   loadModel(modelPath, voice.session, useCuda);
 
@@ -337,7 +335,7 @@ void loadVoice(PiperConfig &config, std::string modelPath,
 void synthesize(std::vector<PhonemeId> &phonemeIds,
                 SynthesisConfig &synthesisConfig, ModelSession &session,
                 std::vector<int16_t> &audioBuffer, SynthesisResult &result) {
-  fmt::print("Synthesizing audio for {} phoneme id(s)", phonemeIds.size());
+  fmt::print("Synthesizing audio for {} phoneme id(s)\n", phonemeIds.size());
 
   auto memoryInfo = Ort::MemoryInfo::CreateCpu(
       OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault);
@@ -404,7 +402,7 @@ void synthesize(std::vector<PhonemeId> &phonemeIds,
   if (result.audioSeconds > 0) {
     result.realTimeFactor = result.inferSeconds / result.audioSeconds;
   }
-  fmt::print("Synthesized {} second(s) of audio in {} second(s)",
+  fmt::print("Synthesized {} second(s) of audio in {} second(s)\n",
                 result.audioSeconds, result.inferSeconds);
 
   // Get max audio value for scaling
@@ -459,12 +457,12 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
       throw std::runtime_error("Tashkeel model is not loaded");
     }
 
-    fmt::print("Diacritizing text with libtashkeel: {}", text);
+    fmt::print("Diacritizing text with libtashkeel: {}\n", text);
     text = tashkeel::tashkeel_run(text, *config.tashkeelState);
   }
 
   // Phonemes for each sentence
-  fmt::print("Phonemizing text: {}", text);
+  fmt::print("Phonemizing text: {}\n", text);
   std::vector<std::vector<Phoneme>> phonemes;
 
   if (voice.phonemizeConfig.phonemeType == eSpeakPhonemes) {
@@ -485,14 +483,14 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
        ++phonemesIter) {
     std::vector<Phoneme> &sentencePhonemes = *phonemesIter;
 
-    if (spdlog::should_log(spdlog::level::debug)) {
+    if (true) {
       // DEBUG log for phonemes
       std::string phonemesStr;
       for (auto phoneme : sentencePhonemes) {
         utf8::append(phoneme, std::back_inserter(phonemesStr));
       }
 
-      fmt::print("Converting {} phoneme(s) to ids: {}",
+      fmt::print("Converting {} phoneme(s) to ids: {}\n",
                     sentencePhonemes.size(), phonemesStr);
     }
 
@@ -554,14 +552,14 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
       // phonemes -> ids
       phonemes_to_ids(*(phrasePhonemes[phraseIdx]), idConfig, phonemeIds,
                       missingPhonemes);
-      if (spdlog::should_log(spdlog::level::debug)) {
+      if (true) {
         // DEBUG log for phoneme ids
         std::stringstream phonemeIdsStr;
         for (auto phonemeId : phonemeIds) {
           phonemeIdsStr << phonemeId << ", ";
         }
 
-        fmt::print("Converted {} phoneme(s) to {} phoneme id(s): {}",
+        fmt::print("Converted {} phoneme(s) to {} phoneme id(s): {}\n",
                       phrasePhonemes[phraseIdx]->size(), phonemeIds.size(),
                       phonemeIdsStr.str());
       }
@@ -598,13 +596,13 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
   }
 
   if (missingPhonemes.size() > 0) {
-    spdlog::warn("Missing {} phoneme(s) from phoneme/id map!",
+    fmt::print("Missing {} phoneme(s) from phoneme/id map!\n",
                  missingPhonemes.size());
 
     for (auto phonemeCount : missingPhonemes) {
       std::string phonemeStr;
       utf8::append(phonemeCount.first, std::back_inserter(phonemeStr));
-      spdlog::warn("Missing \"{}\" (\\u{:04X}): {} time(s)", phonemeStr,
+      fmt::print("Missing \"{}\" (\\u{:04X}): {} time(s)\n", phonemeStr,
                    (uint32_t)phonemeCount.first, phonemeCount.second);
     }
   }
