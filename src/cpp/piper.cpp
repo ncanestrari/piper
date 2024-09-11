@@ -309,10 +309,14 @@ void loadVoice(PiperConfig &config, std::string modelPath,
                std::optional<SpeakerId> &speakerId, bool useCuda) {
   fmt::print("Parsing voice config at {}\n", modelConfigPath);
   std::ifstream modelConfigFile(modelConfigPath);
+  fmt::print("Parsing json configuration\n");
   voice.configRoot = json::parse(modelConfigFile);
 
+  fmt::print("Parsing phonemize configuration\n");
   parsePhonemizeConfig(voice.configRoot, voice.phonemizeConfig);
+  fmt::print("Parsing synthesis configuration\n");
   parseSynthesisConfig(voice.configRoot, voice.synthesisConfig);
+  fmt::print("Parsing model configuration\n");
   parseModelConfig(voice.configRoot, voice.modelConfig);
 
   if (voice.modelConfig.numSpeakers > 1) {
