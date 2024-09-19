@@ -265,6 +265,7 @@ void loadModel(std::string modelPath, ModelSession &session, bool useCuda) {
   session.env.DisableTelemetryEvents();
 
   if (useCuda) {
+    fmt::print("Setting up CUDA\n");
     // Use CUDA provider
     OrtCUDAProviderOptions cuda_options{};
     cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchHeuristic;
@@ -278,6 +279,7 @@ void loadModel(std::string modelPath, ModelSession &session, bool useCuda) {
   // session.options.SetGraphOptimizationLevel(
   //     GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
 
+  fmt::print("Setting up remaining options\n");
   session.options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
 
   // Slows down performance very slightly
@@ -296,6 +298,7 @@ void loadModel(std::string modelPath, ModelSession &session, bool useCuda) {
   auto modelPathStr = modelPath.c_str();
 #endif
 
+  fmt::print("Setting up session\n");
   session.onnx = Ort::Session(session.env, modelPathStr, session.options);
 
   auto endTime = std::chrono::steady_clock::now();
